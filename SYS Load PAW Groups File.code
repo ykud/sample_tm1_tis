@@ -1,0 +1,190 @@
+#Section Prolog
+
+#****Begin: Generated Statements***
+#****End: Generated Statements****
+
+#~~~~~~~~~ Process Description ~~~~~~~~~~~~~~~~
+# Description: Update users and groups from the file that is used to modify security in Planning Analytics Workspace
+# We have standardised the prefixes for Groups, so we can filter only relevant groups from this file
+
+# Parameters
+	# psSecurityFile -- path to security file aname
+
+# Modification History
+
+sTimeStamp = timst( now, '\Y\m\d\h\i\s' );
+sProcessName = GetProcessName();
+sProcessReference = GetProcessName() | sTimeStamp | '_' | NumberToString(Rand() * 1000);
+nCreateAsTemporary = 1;
+nRows = 0;
+nUsersAdded = 0;
+nUsersRemoved = 0;
+nGroupMembershipChanged = 0;
+nGroupsAdded = 0;
+nGroupsRemoved = 0;
+#we want to filter the groups by prefix, we have 5 prefixes in control cube
+nNumberOfSecurityPrefixes = 5;
+sGroupToSkipList = '';
+sGroupToIncludeList = '';
+
+
+sSourceFIle = psSecurityFile;
+
+
+if (FileExists(sSourceFIle) = 0);
+	sMessage = 'File ' | sSourceFIle | ' not found';
+    logoutput('error',sMessage);
+    ItemReject(sMessage);
+    ProcessQuit;
+else;
+    DataSourceType = 'CHARACTERDELIMITED';
+    DatasourceNameForServer = sSourceFIle;
+    DatasourceNameForClient = sSourceFIle;
+    DatasourceASCIIDelimiter = ',';
+    DatasourceASCIIQuoteCharacter ='';
+    DatasourceASCIIHeaderRecords = 1;
+endif;
+
+
+if (psClearAllGroups @= 'Yes');
+	sMessage = 'Removing all users from all groups to reset security';
+    logoutput('info',sMessage);
+    i = 1;
+    nUserAssignmentsRemoved = 0;
+    while (i <= DimSiz('}Clients'));
+		sUser = DimNm('}Clients',i);
+        j = 1; 
+        while (j <= DimSiz('}Groups'));
+			sGroup = DimNm('}Groups', j);
+            if (CellGetS('}ClientGroups', sUser, sGroup) @= sGroup);
+				RemoveClientFromGroup(sUser, sGroup);
+                nUserAssignmentsRemoved = nUserAssignmentsRemoved + 1;
+            endif;
+			j = j + 1;
+        end;
+		i = i + 1;
+    end;
+    sMessage = 'Removed ' | NumberToString(nUserAssignmentsRemoved) | ' user group memberships';
+    logoutput('info',sMessage);
+endif;
+
+#Section Metadata
+
+#****Begin: Generated Statements***
+#****End: Generated Statements****
+
+if (Scan('"' | vGroup | '"', sGroupToSkipList ) = 0 % vGroup @= '');
+  i = 1; 
+  if ( (Scan('"' | vGroup | '"', sGroupToIncludeList ) <> 0)
+  	  	# and the no group  | user | remove to allow deleting users from server
+  	% (vGroup @= '' )
+    );
+	  skipRecord =  'No' ;
+  else;
+    skipRecord =  'Yes';
+  endif;
+  while (i <= nNumberOfSecurityPrefixes & skipRecord @='Yes');
+      # A cube you'd store prefixes in  
+      sPrefix = CellGets('SYS Parameter','PaW Security Group Prefix ' | NumberToString(i) ,'text') ;
+      if (sPrefix @<>'' & Scan(sPrefix, vGroup) = 1);
+          skipRecord ='No';
+      endif;
+      i = i + 1;
+  end;
+   
+  if (skipRecord @='Yes');
+          if (Scan('"' | vGroup | '"', sGroupToSkipList ) = 0);
+            sMessage = 'Group ' | vGroup | ' does not belong to this server, skipping';
+            sGroupToSkipList = sGroupToSkipList | '"' | vGroup | '"';
+         endif;   
+  else;
+  	 if (Scan('"' | vGroup | '"', sGroupToIncludeList ) = 0);
+          sGroupToIncludeList = sGroupToIncludeList | '"' | vGroup | '"';
+     endif;   
+     
+	 sUserCAMID = 'CAMID("pans:u:' |vUser | '")'; 
+     
+     if (vDirective @= 'ADD');
+		# add group
+      	if (Dimix('}Groups', vGroup) = 0);
+        	    sMessage = 'Adding group ' | vGroup | '  to this server';
+                logoutput('info',sMessage);    
+        		ExecuteProcess('SYS Create Group','pGroupName', vGroup);
+                nGroupsAdded = nGroupsAdded + 1;
+   		endif;
+        # add user to group (if any)
+        if (vUser @<>'');
+            if (dimix('}Clients', sUserCAMID) = 0);
+            	sMessage = 'Adding user ' | sUserCAMID | '  to this server';
+                logoutput('info',sMessage);    
+  				ExecuteProcess('SYS Create Client','pClientID', sUserCAMID);
+				nUsersAdded = nUsersAdded + 1;
+			endif;
+           	if (CellGetS('}ClientGroups', sUserCAMID, vGroup) @<> vGroup);
+            	sMessage = 'Adding user ' | sUserCAMID | '  to group ' | vGroup;
+                logoutput('info',sMessage);    
+                AssignClientToGroup(sUserCAMID, vGroup);
+   				nGroupMembershipChanged = nGroupMembershipChanged + 1;
+            endif;
+            vGroupWoPrefix =  Subst(vGroup, Scan(sPrefix, vGroup) + Long(sPrefix), Long(vGroup)); 
+            if (vGroupWoPrefix @= 'ADMIN' % vGroupWoPrefix@='DATAADMIN');
+				sMessage = vGroup | ' is admin group, so we are adding user ' | sUserCAMID | '  to group ' | vGroupWoPrefix | ' as well';
+                logoutput('info',sMessage);    
+                AssignClientToGroup(sUserCAMID, vGroupWoPrefix);
+   				nGroupMembershipChanged = nGroupMembershipChanged + 1;
+			endif;
+        endif;       
+    elseif(vDirective @='REMOVE');
+    	# no username means we're removing the whole group
+        if (vUser @='');
+            sMessage = 'Removing group ' | vGroup | '  from this server';
+        	if (Dimix('}Groups', vGroup) <> 0);
+        		DeleteGroup(vGroup);
+                nGroupsRemoved = nGroupsRemoved + 1;
+   		    endif;
+        elseif (vGroup @='');
+			# need to remove the user entirely
+            sMessage = 'Removing user ' | vUser | '  from this server';
+            logoutput('info',sMessage);    
+        	if (Dimix('}Clients', sUserCAMID) <> 0);
+        		DeleteClient(sUserCAMID);
+                nUsersRemoved = nUsersRemoved + 1;
+   		    endif;
+		else;
+        	sMessage = 'Removing user ' | vUser | ' from group ' | vGroup ;
+            logoutput('info',sMessage);    
+            if (Dimix('}Groups', vGroup) <> 0 & Dimix('}Clients', sUserCAMID) <> 0);
+        		 RemoveClientFromGroup(sUserCAMID, vGroup);
+                 nGroupMembershipChanged = nGroupMembershipChanged + 1;
+                 vGroupWoPrefix =  Subst(vGroup, Scan(sPrefix, vGroup) + Long(sPrefix), Long(vGroup)); 
+		         if (vGroupWoPrefix @= 'ADMIN' % vGroupWoPrefix@='DATAADMIN');
+                 	sMessage = vGroup | ' is admin group, so we are removing user ' | sUserCAMID | '  from group ' | vGroupWoPrefix | ' as well';
+            		logoutput('info',sMessage);    
+                    RemoveClientFromGroup(sUserCAMID, vGroupWoPrefix);
+                 endif;
+   		    endif;
+         endif;
+     else;
+     	sMessage = 'Unknown directive' | vDirective | ' in  row ' | NumberToString(nRows) | ' , skipping';
+        logoutput('warn',sMessage);    
+	endif; 
+  endif;
+endif;
+nRows = nRows + 1;
+
+#Section Data
+
+#****Begin: Generated Statements***
+#****End: Generated Statements****
+
+#Section Epilog
+
+#****Begin: Generated Statements***
+#****End: Generated Statements****
+
+sMessage = 'Read ' |  NumberToString(nRows) | ' rows from file ' | sSourceFIle  | ' : ' 
+	| ' changed ' | NumberToString(nGroupMembershipChanged) | ' group memberships'
+    | ' added ' | NumberToString(nUsersAdded) | ' users, '| NumberToString(nGroupsAdded) |' groups, '
+    | ' removed ' | NumberToString(nUsersRemoved) | ' users, '| NumberToString(nGroupsRemoved) |' groups, '
+	;
+logoutput('info',sMessage);
