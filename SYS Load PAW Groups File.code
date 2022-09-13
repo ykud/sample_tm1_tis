@@ -33,8 +33,9 @@ sSourceFIle = psSecurityFile;
 
 if (FileExists(sSourceFIle) = 0);
 	sMessage = 'File ' | sSourceFIle | ' not found';
-    logoutput('error',sMessage);
-    ItemReject(sMessage);
+	logoutput('error',sMessage);
+	DataSourceType = 'Null';
+	ItemReject(sMessage);
 else;
     DataSourceType = 'CHARACTERDELIMITED';
     DatasourceNameForServer = sSourceFIle;
