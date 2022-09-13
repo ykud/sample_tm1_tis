@@ -35,7 +35,6 @@ if (FileExists(sSourceFIle) = 0);
 	sMessage = 'File ' | sSourceFIle | ' not found';
     logoutput('error',sMessage);
     ItemReject(sMessage);
-    ProcessQuit;
 else;
     DataSourceType = 'CHARACTERDELIMITED';
     DatasourceNameForServer = sSourceFIle;
