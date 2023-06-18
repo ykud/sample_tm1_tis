@@ -4,7 +4,7 @@
 586,
 585,
 564,
-565,"h6\\@sqcasngZKOT\B<tTbNPW81aF^V_ViU47KN:y[FvGR8=8fn_`o90TV<Ml_\OL:lQ@X?eOlAxneFiGNMKNPkjNIN4kpG?3\`j<u4mXVSLVw:dafx_ytqFpS3Zp>P_XTKCs5HIqqrs59CZXecUj[KGU5M^bOqFkXm`gOC\WlIzwCH9UM3JH6E\bJMDZK6lFL?1U1bu"
+565,"z2EgNwELjicK1iVE87npfqVpFvagtyRCxNI<TqwxiEYmFF[ZT:]89f:K_4j7V]QN3DL=bbaTJVe8hg0V>p_ZFo5PSd;:MfByVd?jEth_df6B6@]mjiSC2fx8z6Hy_56iKA4To6UxW`uo?DFrWIWzO?x[5_`g7UwbEZwejDJ:NU3yDYZTGeoR46vI5ZWdm4JJyAJfWjC\"
 559,1
 928,0
 593,
@@ -129,7 +129,7 @@ if (pCreateHttpFolder @= 'Yes');
 endif;
 
 # Powershell script name
-sScriptFile = 'http\iwr_' | pRequestId |'_' | TimSt( Now, '\Y\m\d\h\i\s' ) | '_' | NumberToString(RAND()*10000) | '.ps1';
+sScriptFile = 'http\iwr_' | pRequestId | '_' | NumberToString(RAND()*10000) | '.ps1';
 DatasourceASCIIDelimiter='';
 DatasourceASCIIQuoteCharacter = '';
 # let's write the script
