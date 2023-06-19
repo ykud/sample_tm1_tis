@@ -49,7 +49,7 @@ VarType=32ColType=827
 572,10
 #****Begin: Generated Statements***
 #****End: Generated Statements****
-sSourceFile = Expand('http/%pRequestId%.body');
+sSourceFile = Expand('http\%pRequestId%.body');
 StringSessionVariable('SysHttpBody');
 
 #Assign Source file

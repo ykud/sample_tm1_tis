@@ -53,7 +53,7 @@ VarType=33ColType=827
 572,10
 #****Begin: Generated Statements***
 #****End: Generated Statements****
-sSourceFile = Expand('http/%pRequestId%.status');
+sSourceFile = Expand('http\%pRequestId%.status');
 NumericSessionVariable('SysHttpStatus');
 
 #Assign Source file
